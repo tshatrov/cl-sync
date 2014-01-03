@@ -486,6 +486,15 @@ Undecided files:
 
 :copy-source :copy-target :delete-source :delete-target :delete-both
 
+(defun merge-pathnames-relative (target source base)
+  (let* ((base-list (cdr (pathname-directory (pathname-as-directory* base))))
+         (src-list (cdr (pathname-directory source)))
+         (pathname (make-pathname
+                    :directory `(:relative ,@(subseq src-list (length base-list)))
+                    :defaults source)))
+    (uiop:merge-pathnames* pathname (pathname-as-directory* target))))
+
+
 (defun process-diff (diff &optional processor 
                      &aux (source (source (job diff))) (target (target (job diff))))
   (unless processor (setf processor (processor (job diff))))
@@ -493,13 +502,13 @@ Undecided files:
   (loop with act = (action (first processor)) 
        for (src tar) in (new-source diff)
        do (setf tar (if (file-mode diff) target
-                        (merge-pathnames (pathname-as-directory* target) (pathname-as-file* (pname src)))))
+                        (merge-pathnames-relative target (pname src) source)))
        (funcall act src tar))
   (setf *current-answer* nil)
   (loop with act = (action (second processor)) 
        for (src tar) in (new-target diff)
        do (setf src (if (file-mode diff) source
-                        (merge-pathnames (pathname-as-directory* source) (pathname-as-file* (pname tar)))))
+                        (merge-pathnames-relative source (pname tar) target)))
        (funcall act src tar))
   (setf *current-answer* nil)
   (loop with act = (action (third processor)) 
@@ -545,5 +554,6 @@ Undecided files:
     (unwind-protect (process-jobs jl do-not-ask)
       (mapcar #'reverse-job joblist))))
        
-
-
+(defun quick-sync (source target &key excludes (job-fn #'make-job-overwrite-with-source))
+  (let ((jobs (list (funcall job-fn source target excludes))))
+    (process-jobs jobs)))
