@@ -357,7 +357,7 @@ Undecided files:
      "xcopy"
      "/h/r/k/y"
      (native-ns source)
-     (native-as-file (pathname-directory-pathname path)))))
+     (native-as-file (uiop:pathname-directory-pathname path)))))
     
 (defun del-dir (path)
   (when path
