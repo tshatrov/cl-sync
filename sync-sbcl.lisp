@@ -18,6 +18,15 @@
     (error ()
       (error "Error while accessing file: ~a" name))))
 
+;; because mtime returns unix time we need to convert it to universal time
+;; via http://lisptips.com/post/11649360174/the-common-lisp-and-unix-epochs
+
+(defvar *unix-epoch-difference*
+  (encode-universal-time 0 0 0 1 1 1970 0))
+
+(defun unix-to-universal-time (unix-time)
+  (+ unix-time *unix-epoch-difference*))
+
 ;; fixed pathname-as-file from cl-fad
 (defun pathname-as-file* (pathspec)
   "Converts the non-wild pathname designator PATHSPEC to file form."
@@ -140,8 +149,8 @@ form."
                    :pname pathname
                    :name (file-namestring pn)
                    :size (sb-posix:stat-size fi)
-                   :mtime (sb-posix:stat-mtime fi)
-                   :ctime (sb-posix:stat-ctime fi)
+                   :mtime (unix-to-universal-time (sb-posix:stat-mtime fi))
+                   :ctime (unix-to-universal-time (sb-posix:stat-ctime fi))
                    :tag tag)))
     
 (defun compare-filenames (file1 file2)
