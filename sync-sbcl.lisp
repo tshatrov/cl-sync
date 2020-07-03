@@ -97,7 +97,7 @@ form."
                  :preference :newer
                  :processor (list :copy-source :ask :copy-source :copy-target :ask)
                  :exclude excludes))
- 
+
 (defun reverse-job (job)
   (psetf (source job) (target job) (target job) (source job)))
 
@@ -107,14 +107,14 @@ form."
        when (string= x "?") collect (list :non-greedy-repetition 0 1 :everything) into res else
        when (> (length x) 0) collect x into res
        finally (return (nconc (list :sequence :start-anchor) res (list :end-anchor)))))
-       
+
 (defun exclude-scanner (list)
   (when list
     (create-scanner (if (> (length list) 1)
                         (cons :alternation (mapcar #'wildcard-parse-tree list))
                         (wildcard-parse-tree (car list)))
                     :case-insensitive-mode t)))
-   
+
 (defclass diff ()
   ((job :initarg :job :accessor job)
    (file-mode :initform nil :accessor file-mode)
@@ -152,7 +152,7 @@ form."
                    :mtime (unix-to-universal-time (sb-posix:stat-mtime fi))
                    :ctime (unix-to-universal-time (sb-posix:stat-ctime fi))
                    :tag tag)))
-    
+
 (defun compare-filenames (file1 file2)
   (string-equal (name file1) (name file2)))
 
@@ -161,8 +161,8 @@ form."
   (and (compare-filenames file1 file2)
        (eql (dir file1) (dir file2))
        (= (size file1) (size file2))
-       (<= (abs (- (mtime file1) (mtime file2))) 7200) 
-       (zerop (mod (- (mtime file1) (mtime file2)) 3600))))
+       (<= (abs (- (mtime file1) (mtime file2))) 7200)
+       (<= (mod (abs (- (mtime file1) (mtime file2))) 3600) 5)))
 
 (defgeneric prefer (keyword)
   (:documentation "Returns a function of 2 variables corresponding to
@@ -179,12 +179,12 @@ form."
   (lambda (source target) (declare (ignore source target)) 0))
 
 (defmethod prefer ((keyword (eql :bigger)))
-  (lambda (source target) 
+  (lambda (source target)
     (if (or (dir source) (dir target) 0)
         (signum (- (size source) (size target))))))
 
 (defmethod prefer ((keyword (eql :newer)))
-  (lambda (source target) 
+  (lambda (source target)
     (if (or (dir source) (dir target) 0)
         (signum (- (mtime source) (mtime target))))))
 
@@ -224,7 +224,7 @@ form."
                    (cond
                      ((not ft) (push (list (make-file-object fs) nil) (new-source d)))
                      ((not fs) (push (list nil (make-file-object ft)) (new-target d)))
-                     (t 
+                     (t
                       (let ((f1 (make-file-object fs))
                             (f2 (make-file-object ft)))
                         (unless (compare-files f1 f2)
@@ -271,7 +271,7 @@ form."
 (defun fv (file path)
   (when file
     (if (directory-exists-p path)
-        (subseq (native-ns (pname file)) 
+        (subseq (native-ns (pname file))
                 (length (native-ns (pathname-as-directory* path))))
         (native-ns (pname file)))))
 
@@ -279,7 +279,7 @@ form."
   (multiple-value-bind (second minute hour date month year) (decode-universal-time time)
     (format nil "~4d-~2,'0d-~2,'0d ~2,'0d:~2,'0d:~2,'0d" year month date hour minute second)))
 
-(defun preview-diff (diff &aux (source (source (job diff))) 
+(defun preview-diff (diff &aux (source (source (job diff)))
                      (target (target (job diff)))
                      (count 0))
   (format t "~%----------------------------------------------
@@ -289,7 +289,7 @@ Target:~a~%"
           source target)
   (flet ((display-pair (src tar act)
            (incf count)
-           (format t "~@[Source file:~a~]~@[ ~a~]~@[ ~a~%~]~@[Target file:~a~]~@[ ~a~]~@[ ~a~%~]Default action: ~a~%~%" 
+           (format t "~@[Source file:~a~]~@[ ~a~]~@[ ~a~%~]~@[Target file:~a~]~@[ ~a~]~@[ ~a~%~]Default action: ~a~%~%"
                    (fv src source) (when src (size src)) (when src (display-time (mtime src)))
                    (fv tar target) (when tar (size tar)) (when tar (display-time (mtime tar)))
                    act)))
@@ -297,23 +297,23 @@ Target:~a~%"
     (format t "----------------------------------------------
 New source files:
 ----------------------------------------------~%")
-    (loop with act = (first (processor (job diff))) 
+    (loop with act = (first (processor (job diff)))
        for (src tar) in (new-source diff)
        do (display-pair src tar act)))
-  
+
   (when (new-target diff)
     (format t "----------------------------------------------
 New target files:
 ----------------------------------------------~%")
-    (loop with act = (second (processor (job diff))) 
+    (loop with act = (second (processor (job diff)))
        for (src tar) in (new-target diff)
        do (display-pair src tar act)))
-  
+
   (when (prefer-source diff)
     (format t "----------------------------------------------
 Prefer source files:
 ----------------------------------------------~%")
-    (loop with act = (third (processor (job diff))) 
+    (loop with act = (third (processor (job diff)))
        for (src tar) in (prefer-source diff)
        do (display-pair src tar act)))
 
@@ -321,7 +321,7 @@ Prefer source files:
     (format t "----------------------------------------------
 Prefer target files:
 ----------------------------------------------~%")
-    (loop with act = (fourth (processor (job diff))) 
+    (loop with act = (fourth (processor (job diff)))
        for (src tar) in (prefer-target diff)
        do (display-pair src tar act)))
 
@@ -329,11 +329,11 @@ Prefer target files:
     (format t "----------------------------------------------
 Undecided files:
 ----------------------------------------------~%")
-    (loop with act = (fifth (processor (job diff))) 
+    (loop with act = (fifth (processor (job diff)))
        for (src tar) in (undecided diff)
        do (display-pair src tar act)))
   count))
-  
+
 
 (defun native-ns (pathname)
   (sb-ext:native-namestring pathname))
@@ -354,7 +354,7 @@ Undecided files:
     (format t "Copying directory ~a to ~a~%" source path)
     (ensure-directories-exist (pathname-as-directory* path))
     (run-command
-     "xcopy" 
+     "xcopy"
      "/e/i/h/r/y/c/k"
      (native-as-file source)
      (native-as-file path))))
@@ -367,7 +367,7 @@ Undecided files:
      "/h/r/k/y"
      (native-ns source)
      (native-as-file (uiop:pathname-directory-pathname path)))))
-    
+
 (defun del-dir (path)
   (when path
     (format t "Deleting directory ~a~%" path)
@@ -431,7 +431,7 @@ Undecided files:
                   (progn (del-file (pname target))
                          (copy-file (pname source) (pname target))))
               ;;target is a path where we should copy the source file
-              (copy-file (pname source) target))))))        
+              (copy-file (pname source) target))))))
 
 (defmethod action ((keyword (eql :delete-source)))
   (lambda (source target)
@@ -474,11 +474,11 @@ Undecided files:
           (funcall act src tar))
         (progn
           (format t "What to do?~%")
-          (format t "~@[Source file:~a~]~@[ ~a~]~@[ ~a~%~]~@[Target file:~a~]~@[ ~a~]~@[ ~a~]~%" 
-                  (pname src) 
-                  (when (is-file-object src) (size src)) 
+          (format t "~@[Source file:~a~]~@[ ~a~]~@[ ~a~%~]~@[Target file:~a~]~@[ ~a~]~@[ ~a~]~%"
+                  (pname src)
+                  (when (is-file-object src) (size src))
                   (when (is-file-object src) (display-time (mtime src)))
-                  (pname tar) 
+                  (pname tar)
                   (when (is-file-object tar) (size tar))
                   (when (is-file-object tar) (display-time (mtime tar))))
           (let ((act (action (read))))
@@ -504,23 +504,23 @@ Undecided files:
     (uiop:merge-pathnames* pathname (pathname-as-directory* target))))
 
 
-(defun process-diff (diff &optional processor 
+(defun process-diff (diff &optional processor
                      &aux (source (source (job diff))) (target (target (job diff))))
   (unless processor (setf processor (processor (job diff))))
   (setf *current-answer* nil)
-  (loop with act = (action (first processor)) 
+  (loop with act = (action (first processor))
        for (src tar) in (new-source diff)
        do (setf tar (if (file-mode diff) target
                         (merge-pathnames-relative target (pname src) source)))
        (funcall act src tar))
   (setf *current-answer* nil)
-  (loop with act = (action (second processor)) 
+  (loop with act = (action (second processor))
        for (src tar) in (new-target diff)
        do (setf src (if (file-mode diff) source
                         (merge-pathnames-relative source (pname tar) target)))
        (funcall act src tar))
   (setf *current-answer* nil)
-  (loop with act = (action (third processor)) 
+  (loop with act = (action (third processor))
        for (src tar) in (prefer-source diff)
        do (funcall act src tar))
   (setf *current-answer* nil)
@@ -528,7 +528,7 @@ Undecided files:
        for (src tar) in (prefer-target diff)
        do (funcall act src tar))
   (setf *current-answer* nil)
-  (loop with act = (action (fifth processor)) 
+  (loop with act = (action (fifth processor))
        for (src tar) in (undecided diff)
        do (funcall act src tar))
   (setf *current-answer* nil)
@@ -562,7 +562,7 @@ Undecided files:
     (mapcar #'reverse-job joblist)
     (unwind-protect (process-jobs jl do-not-ask)
       (mapcar #'reverse-job joblist))))
-       
+
 (defun quick-sync (source target &key excludes (job-fn #'make-job-overwrite-with-source))
   (let ((jobs (list (funcall job-fn source target excludes))))
     (process-jobs jobs)))
