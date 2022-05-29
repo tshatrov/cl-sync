@@ -474,7 +474,7 @@ Undecided files:
           (funcall act src tar))
         (progn
           (format t "What to do?~%")
-          (format t "~@[Source file:~a~]~@[ ~a~]~@[ ~a~%~]~@[Target file:~a~]~@[ ~a~]~@[ ~a~]~%"
+          (format t "~@[Source file:~a~]~@[ ~a~]~@[ ~a~]~%~@[Target file:~a~]~@[ ~a~]~@[ ~a~]~%"
                   (pname src)
                   (when (is-file-object src) (size src))
                   (when (is-file-object src) (display-time (mtime src)))
